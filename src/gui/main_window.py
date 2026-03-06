@@ -330,7 +330,7 @@ class MainWindow(QMainWindow):
         self._download_thread: UpdateDownloadThread | None = None
         self._download_dialog: QProgressDialog | None = None
 
-        self.setWindowTitle(f"{APP_NAME} v{app_version}")
+        self.setWindowTitle(f"{APP_NAME} v{self.app_version}")
         self.resize(settings.window_width, settings.window_height)
         self.setMinimumSize(980, 650)
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
@@ -363,7 +363,7 @@ class MainWindow(QMainWindow):
 
         self._apply_shadow(root, blur=28, alpha=58, offset_y=5)
 
-        self.title_bar = MacTitleBar(self, app_version)
+        self.title_bar = MacTitleBar(self, self.app_version)
         root_layout.addWidget(self.title_bar)
 
         content = QWidget(root)
