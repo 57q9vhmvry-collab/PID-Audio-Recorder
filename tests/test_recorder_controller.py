@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -43,6 +44,26 @@ class FakeBackend:
 class FakeTranscoder:
     def transcode(self, wav_path: Path, mp3_path: Path, bitrate_kbps: int) -> None:
         mp3_path.write_bytes(b"MP3")
+
+
+def _build_broken_pcm_wav(payload: bytes) -> bytes:
+    channels = 2
+    sample_rate = 48000
+    bits_per_sample = 16
+    block_align = channels * bits_per_sample // 8
+    byte_rate = sample_rate * block_align
+    fmt_chunk = (
+        b"fmt "
+        + (16).to_bytes(4, "little")
+        + (1).to_bytes(2, "little")
+        + channels.to_bytes(2, "little")
+        + sample_rate.to_bytes(4, "little")
+        + byte_rate.to_bytes(4, "little")
+        + block_align.to_bytes(2, "little")
+        + bits_per_sample.to_bytes(2, "little")
+    )
+    data_chunk = b"data" + (0).to_bytes(4, "little") + payload
+    return b"RIFF" + (36).to_bytes(4, "little") + b"WAVE" + fmt_chunk + data_chunk
 
 
 def test_controller_start_pause_resume_stop(qtbot, tmp_path) -> None:
@@ -148,3 +169,22 @@ def test_controller_uses_configured_temp_recording_dir(qtbot, tmp_path) -> None:
 
     assert backend.wav_path is not None
     assert backend.wav_path.parent == temp_dir
+
+
+def test_controller_recovers_realtime_wav_after_unclean_shutdown(qtbot, tmp_path) -> None:
+    temp_dir = tmp_path / "temp-recordings"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    payload = b"\x01" * 3200
+    wav_path = tmp_path / "crashed.wav"
+    wav_path.write_bytes(_build_broken_pcm_wav(payload))
+
+    marker_path = temp_dir / "active_realtime_recording.json"
+    marker_path.write_text(json.dumps({"wav_path": str(wav_path)}), encoding="utf-8")
+
+    RecorderController(backend=FakeBackend(), transcoder=FakeTranscoder(), temp_recordings_dir=temp_dir)
+
+    raw = wav_path.read_bytes()
+    assert not marker_path.exists()
+    assert int.from_bytes(raw[4:8], "little") == len(raw) - 8
+    assert int.from_bytes(raw[40:44], "little") == len(payload)
