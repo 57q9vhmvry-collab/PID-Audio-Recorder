@@ -1,0 +1,2 @@
+"""GUI widgets and windows."""
+
