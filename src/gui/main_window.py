@@ -865,10 +865,18 @@ class MainWindow(QMainWindow):
         }
         stop_ready = state in {RecorderState.STARTING, RecorderState.RECORDING, RecorderState.PAUSED}
         pause_ready = state in {RecorderState.RECORDING, RecorderState.PAUSED}
+        output_mode_ready = state in {
+            RecorderState.IDLE,
+            RecorderState.COMPLETED,
+            RecorderState.ERROR,
+        }
 
         self.start_button.setEnabled(start_ready)
         self.stop_button.setEnabled(stop_ready)
         self.pause_button.setEnabled(pause_ready)
+        self._apply_save_mode_ui()
+        self.format_combo.setEnabled(output_mode_ready)
+        self.save_mode_combo.setEnabled(output_mode_ready)
         pause_is_resume = state == RecorderState.PAUSED
         self.pause_button.setText("继续" if pause_is_resume else "暂停")
         self.pause_button.setProperty("paused", pause_is_resume)
@@ -907,11 +915,14 @@ class MainWindow(QMainWindow):
         is_realtime = save_mode == SaveMode.REALTIME.value
 
         if is_realtime:
-            self._set_combo_value(self.format_combo, OutputFormat.WAV.value, OutputFormat.WAV.value)
-            self.format_combo.setEnabled(False)
-            self.format_combo.setToolTip("实时保存模式固定为 WAV")
+            if self.format_combo.currentData() not in {OutputFormat.MP3.value, OutputFormat.WAV.value}:
+                self._set_combo_value(self.format_combo, OutputFormat.MP3.value, OutputFormat.MP3.value)
+            self.format_combo.setEnabled(True)
+            self.format_combo.setToolTip("实时保存会自动分段，优先保证文件完整性")
             self.settings.save_mode = SaveMode.REALTIME.value
-            self.settings.output_format = OutputFormat.WAV.value
+            current_format = self.format_combo.currentData()
+            if current_format in {OutputFormat.MP3.value, OutputFormat.WAV.value}:
+                self.settings.output_format = current_format
             return
 
         self.format_combo.setEnabled(True)

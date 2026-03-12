@@ -25,7 +25,7 @@ class RecorderRequest:
     save_mode: SaveMode = SaveMode.DEFERRED
     sample_rate: int = 48000
     channels: int = 2
-    bitrate_kbps: int = 192
+    bitrate_kbps: int = 64
 
 
 class RecorderState(Enum):
